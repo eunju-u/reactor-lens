@@ -1,0 +1,15 @@
+# 비밀 정보 (API 키) - 절대 올리지 않음
+.env
+
+# 파이썬 가상환경 / 캐시
+.venv/
+__pycache__/
+*.pyc
+
+# 실행 결과물 (README에 쓰는 그래프 이미지는 올림)
+output/*
+!output/yield_analysis_plot.png
+
+# 개인 도구 설정 / macOS 시스템 파일
+.claude/
+.DS_Store

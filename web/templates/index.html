@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>반응기 실험 분석</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 3h6M10 3v6.5L4.6 18.2A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-2.8L14 9.5V3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 15h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <div>
+          <h1>반응기 실험 데이터 분석</h1>
+          <p class="sub">데이터 정제 · 이상치 탐지 · AI 원인 분류 · 환각 검증</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ① 데이터 입력 -->
+    <section class="card" aria-labelledby="step1">
+      <div class="card-head">
+        <span class="step">1</span>
+        <div>
+          <h2 id="step1">데이터 넣기</h2>
+          <p class="hint">파일을 올리거나, 아래 표에 직접 입력하세요. 올린 데이터도 표에서 바로 고칠 수 있습니다.</p>
+        </div>
+      </div>
+
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" hidden>
+        <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <strong>CSV 또는 엑셀 파일을 끌어다 놓거나 클릭해서 선택</strong>
+        <span class="muted">.csv · .xlsx · 최대 300행 · 한글 컬럼명(온도, 수율 등)도 인식합니다</span>
+      </label>
+
+      <div class="actions-row">
+        <button class="btn" id="btnSample" type="button">샘플 데이터 불러오기</button>
+        <button class="btn" id="btnBlank" type="button">빈 표로 직접 입력</button>
+        <a class="btn btn-ghost" href="/api/template">입력 양식 다운로드 (CSV)</a>
+      </div>
+
+      <details class="guide">
+        <summary>컬럼 설명 보기</summary>
+        <table class="mini">
+          <thead><tr><th>컬럼</th><th>의미</th><th>운전 범위</th></tr></thead>
+          <tbody>
+            <tr><td>Experiment_ID</td><td>실험 번호 (비우면 자동 생성)</td><td>-</td></tr>
+            <tr><td>Temp_C</td><td>반응온도 (°C)</td><td>140 ~ 220</td></tr>
+            <tr><td>Pressure_bar</td><td>반응압력 (bar)</td><td>1.0 ~ 3.0</td></tr>
+            <tr><td>Catalyst_g</td><td>촉매 투입량 (g)</td><td>0.2 ~ 1.5</td></tr>
+            <tr><td>Reaction_Time_min</td><td>반응시간 (분)</td><td>30 ~ 120</td></tr>
+            <tr><td>Yield_pct</td><td>수율 (%)</td><td>0 ~ 100</td></tr>
+            <tr><td>Purity_pct</td><td>순도 (%)</td><td>0 ~ 100</td></tr>
+            <tr><td>Notes</td><td>특이사항 메모. 이상 실험은 <code>[이상치]</code>로 시작하면 정확도가 높아집니다</td><td>-</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <p class="msg" id="inputMsg" role="status"></p>
+    </section>
+
+    <!-- ② 데이터 확인·수정 -->
+    <section class="card" id="editorCard" hidden aria-labelledby="step2">
+      <div class="card-head">
+        <span class="step">2</span>
+        <div>
+          <h2 id="step2">데이터 확인 · 수정</h2>
+          <p class="hint">칸을 클릭해 값을 고칠 수 있습니다. 빈 칸은 결측치로 처리됩니다.</p>
+        </div>
+        <div class="head-tools">
+          <span class="count" id="rowCount">0행</span>
+          <button class="btn btn-sm" id="btnAddRow" type="button">+ 행 추가</button>
+          <button class="btn btn-sm btn-ghost" id="btnClear" type="button">표 비우기</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="grid editor" id="editorTable">
+          <thead>
+            <tr>
+              <th>실험 번호</th><th>온도 °C</th><th>압력 bar</th><th>촉매 g</th>
+              <th>시간 min</th><th>수율 %</th><th>순도 %</th><th class="col-notes">특이사항</th><th aria-label="삭제"></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="run-bar">
+        <label class="switch">
+          <input type="checkbox" id="useAi" checked>
+          <span class="track" aria-hidden="true"></span>
+          <span>Gemini AI로 특이사항 분류 <span class="muted">(끄면 키워드 규칙으로 분류)</span></span>
+        </label>
+        <button class="btn btn-primary" id="btnRun" type="button">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="label">분석 실행</span>
+        </button>
+      </div>
+      <p class="msg" id="runMsg" role="status"></p>
+    </section>
+
+    <!-- ③ 결과 -->
+    <section id="results" hidden aria-labelledby="step3">
+      <div class="results-head">
+        <div class="card-head flat">
+          <span class="step">3</span>
+          <div>
+            <h2 id="step3">분석 결과</h2>
+            <p class="hint" id="sourceLine"></p>
+          </div>
+        </div>
+        <a class="btn btn-primary" id="btnDownload" href="#">엑셀 리포트 다운로드</a>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card">
+        <h3>반응 조건별 수율</h3>
+        <p class="hint">● 초록 원: 정상 실험 &nbsp; ✕ 회색 엑스: 이상치(실험 번호 표시) &nbsp; 점선: 정상 데이터로만 그린 추세선</p>
+        <img id="plot" alt="반응온도·촉매량과 수율의 관계 산점도" class="plot">
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <h3>원인별 평균 수율</h3>
+          <p class="hint">AI가 분류한 카테고리 기준 · 막대에 마우스를 올리면 상세 값이 보입니다</p>
+          <div id="catChart" class="bars"></div>
+        </div>
+        <div class="card">
+          <h3>결측치 현황</h3>
+          <p class="hint">운전조건은 중앙값으로 채우고, 수율이 빈 행은 분석에서 제외했습니다</p>
+          <div id="missingBox"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-head">
+          <h3>실험별 상세 결과</h3>
+          <div class="chips" id="filterChips" role="tablist"></div>
+        </div>
+        <div class="table-scroll">
+          <table class="grid result" id="resultTable">
+            <thead>
+              <tr>
+                <th>실험 번호</th><th>상태</th><th>온도</th><th>압력</th><th>촉매</th><th>수율</th><th>순도</th>
+                <th class="col-notes">원본 메모</th><th>AI 분류</th><th class="col-notes">AI 원인 요약</th><th class="col-notes">검증</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <details class="card stats">
+        <summary><h3>기초 통계 보기</h3></summary>
+        <div class="table-scroll">
+          <table class="grid" id="statsTable">
+            <thead><tr><th>변수</th><th>평균</th><th>표준편차</th><th>최소</th><th>최대</th><th>평균(이상치 제외)</th><th>수율과 상관계수</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    로컬에서 실행되는 분석 도구입니다. Gemini 분류를 켜면 표의 데이터가 Google 서버로 전송됩니다.
+  </footer>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
